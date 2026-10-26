@@ -1,0 +1,6 @@
+pluginManagement {
+    repositories { maven { url = 'https://maven.fabricmc.net/' }; gradlePluginPortal() }
+}
+rootProject.name = 'iris-vulkan-engine'
+if (providers.gradleProperty('withFabric').isPresent()) include 'fabric'
+if (providers.gradleProperty('withNeoForge').isPresent()) include 'neoforge'

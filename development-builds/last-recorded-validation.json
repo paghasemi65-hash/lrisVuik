@@ -1,0 +1,11 @@
+{
+  "unitTests": 54,
+  "benchmarkTests": 1,
+  "validationErrors": 0,
+  "productionReady": false,
+  "neoForgeClient": "passed",
+  "gpuTests": 6,
+  "fabricClient": "passed",
+  "date": "2026-10-26",
+  "sodiumClient": "failed: missing terrain upload bindings"
+}

@@ -1,0 +1,90 @@
+plugins { id 'java-library' }
+
+group = 'net.irisshaders'
+version = '0.1.0-dev+mc26.3'
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) }; withSourcesJar() }
+tasks.withType(Jar).configureEach { from('../LICENSE'); from('../LICENSE-DEPENDENCIES') }
+repositories { mavenCentral() }
+def lwjglVersion = '3.4.3' // Matches the official 26.3 launcher manifest.
+def os = System.getProperty('os.name').toLowerCase()
+def arm = System.getProperty('os.arch').contains('aarch64')
+def natives = os.contains('win') ? 'natives-windows' : os.contains('mac') ? 'natives-macos' : 'natives-linux'
+if (arm) natives += '-arm64'
+dependencies {
+    api platform("org.lwjgl:lwjgl-bom:$lwjglVersion")
+    ['lwjgl', 'lwjgl-vulkan', 'lwjgl-shaderc', 'lwjgl-vma', 'lwjgl-sdl'].each { api "org.lwjgl:$it" }
+    ['lwjgl', 'lwjgl-shaderc', 'lwjgl-vma', 'lwjgl-sdl'].each { runtimeOnly "org.lwjgl:$it::$natives" }
+    if (os.contains('mac')) runtimeOnly "org.lwjgl:lwjgl-vulkan::$natives"
+    implementation 'io.github.douira:glsl-transformer:3.0.0-pre3'
+    implementation 'org.antlr:antlr4-runtime:4.13.1'
+    implementation 'org.anarres:jcpp:1.4.14'
+    implementation 'com.google.code.gson:gson:2.13.2'
+    api 'org.joml:joml:1.10.9' // Same matrix library/version supplied by Minecraft 26.3.
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 25 }
+test { useJUnitPlatform(); jvmArgs '--enable-native-access=ALL-UNNAMED' }
+tasks.register('gpuTest', Test) {
+    description = 'Opt-in Vulkan device and command validation smoke tests'
+    useJUnitPlatform { includeTags 'gpu' }
+    systemProperty 'iris.vulkan.gpuTest', 'true'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+}
+test { useJUnitPlatform { excludeTags 'gpu', 'benchmark' } }
+tasks.register('benchmarkTest', Test) {
+    description = 'Compile the externally supplied benchmark pack in all vanilla dimensions'
+    useJUnitPlatform { includeTags 'benchmark' }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    systemProperty 'iris.benchmark.pack', providers.gradleProperty('benchmarkPack').getOrElse('')
+    testLogging { showStandardStreams = true; exceptionFormat = 'full' }
+}
+tasks.register('compilePack', JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'net.irisshaders.iris.vulkan.shader.ShaderPackCompilerMain'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    if (providers.gradleProperty('pack').isPresent()) args providers.gradleProperty('pack').get(), providers.gradleProperty('gameDir').getOrElse('run')
+}
+
+tasks.register('packageDevelopmentRelease') {
+    description = 'Verify and collect both installable development JARs with SHA-256 checksums'
+    group = 'build'
+    if (findProject(':fabric') != null && findProject(':neoforge') != null) {
+        dependsOn ':fabric:build', ':neoforge:build', 'test'
+    }
+    doLast {
+        if (findProject(':fabric') == null || findProject(':neoforge') == null) throw new GradleException('Use -PwithFabric -PwithNeoForge')
+        def output = layout.buildDirectory.dir('releases').get().asFile
+        output.mkdirs()
+        def checksums = []
+        ['fabric', 'neoforge'].each { loader ->
+            def artifact = project(':' + loader).tasks.named('jar').get().archiveFile.get().asFile
+            new java.util.zip.ZipFile(artifact).withCloseable { zip ->
+                def names = zip.entries().collect { it.name }
+                def metadata = loader == 'fabric' ? 'fabric.mod.json' : 'META-INF/neoforge.mods.toml'
+                def mixins = loader == 'fabric' ? 'iris-vulkan.mixins.json' : 'iris-vulkan-neoforge.mixins.json'
+                if (!names.contains(metadata) || !names.contains(mixins)) throw new GradleException('Missing loader metadata: ' + artifact)
+                if (names.any { it.contains('/vulkan/verify/') || it.startsWith('net/minecraft/') }) throw new GradleException('Development automation or game classes in ' + artifact)
+                ['glsl-transformer-', 'antlr4-runtime-', 'jcpp-', 'iris-vulkan-engine-'].each { dependency ->
+                    if (!names.any { it.endsWith('.jar') && it.contains(dependency) }) throw new GradleException('Missing bundled dependency ' + dependency)
+                }
+                names.findAll { it.endsWith('.mixins.json') }.each { configuration ->
+                    def config = new groovy.json.JsonSlurper().parse(zip.getInputStream(zip.getEntry(configuration)))
+                    config.client.each { name ->
+                        if (!names.contains(config.package.replace('.', '/') + '/' + name.replace('.', '/') + '.class')) throw new GradleException('Missing mixin class ' + name)
+                    }
+                }
+            }
+            def destination = new File(output, artifact.name)
+            java.nio.file.Files.copy(artifact.toPath(), destination.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            def hash = java.security.MessageDigest.getInstance('SHA-256').digest(destination.bytes).encodeHex().toString()
+            checksums.add(hash + '  ' + destination.name)
+        }
+        new File(output, 'SHA256SUMS.txt').text = checksums.join('\n') + '\n'
+    }
+}

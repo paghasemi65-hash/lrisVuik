@@ -1,0 +1,2 @@
+2097fc8d9313a769e9ec08ca754b2fb34c57c28023484d6e316f478129958128  iris-vulkan-fabric-bridge-0.1.0-dev+mc26.3.jar
+3df544fa00e9df09e82e72669e3d8e1ea9597aa65817ded45c0d7b71bc07e78a  iris-vulkan-neoforge-bridge-0.1.0-dev+mc26.3.jar

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "iris_vulkan_engine",
+  "version": "${version}",
+  "name": "Iris Vulkan Engine Development Bridge",
+  "description": "Experimental Vulkan engine with in-game shaderpack loading, options, and GPU resource configuration. World shader effects are not yet enabled.",
+  "environment": "client",
+  "license": "LGPL-3.0-only",
+  "mixins": ["iris-vulkan.mixins.json"],
+  "depends": {"fabricloader": ">=0.19.5", "minecraft": "26.3", "java": ">=25"},
+  "breaks": {"iris": "*"}
+}

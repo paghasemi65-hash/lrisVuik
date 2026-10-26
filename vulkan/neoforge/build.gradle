@@ -1,0 +1,84 @@
+plugins { id 'java-library'; id 'net.neoforged.moddev' version '2.0.148' }
+
+group = rootProject.group
+version = rootProject.version
+base { archivesName = 'iris-vulkan-neoforge-bridge' }
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+repositories { mavenCentral() }
+
+// The RenderPearl bridge has no Fabric API dependency. Compile the same sources against each loader.
+sourceSets.main.java.srcDir '../fabric/src/main/java'
+sourceSets.main.java.exclude '**/OptionsKeyMappingMixin.java'
+neoForge {
+    enable { version = '26.3.0.98'; disableRecompilation = true }
+    runs { client {
+        client()
+        programArguments.addAll '--graphicsBackend', 'vulkan', '--offlineDeveloperMode'
+        jvmArgument '--enable-native-access=ALL-UNNAMED'
+    } }
+    mods { iris_vulkan_engine { sourceSet sourceSets.main } }
+}
+dependencies {
+    implementation project(':')
+    jarJar project(':')
+    jarJar 'io.github.douira:glsl-transformer:3.0.0-pre3'
+    jarJar 'org.antlr:antlr4-runtime:4.13.1'
+    jarJar 'org.anarres:jcpp:1.4.14'
+}
+tasks.withType(JavaCompile).configureEach { options.release = 25; options.encoding = 'UTF-8' }
+tasks.withType(Jar).configureEach { from('../../LICENSE'); from('../../LICENSE-DEPENDENCIES') }
+processResources {
+    inputs.property 'version', version
+    filesMatching('META-INF/neoforge.mods.toml') { expand version: version }
+    from('../fabric/src/main/resources') {
+        exclude 'fabric.mod.json', 'iris-vulkan.mixins.json'
+    }
+}
+
+// A separate mod supplies the same real-client checks used on Fabric; never bundled in releases.
+sourceSets {
+    verification {
+        java.srcDir '../fabric/src/verification/java'
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+tasks.named('processVerificationResources') {
+    from('../fabric/src/verification/resources') { exclude 'fabric.mod.json' }
+}
+neoForge {
+    if (providers.gradleProperty('clientVerification').isPresent()) {
+        mods { iris_vulkan_verification { sourceSet sourceSets.verification } }
+    }
+    runs {
+        verification {
+            client()
+            sourceSet = sourceSets.verification
+            gameDirectory = file('run-verification')
+            programArguments.addAll '--graphicsBackend', 'vulkan', '--offlineDeveloperMode', '--username', 'IrisVerification', '--renderDebugLabels'
+            jvmArgument '--enable-native-access=ALL-UNNAMED'
+            systemProperty 'mixin.debug.countInjections', 'true'
+            if (providers.gradleProperty('benchmarkPack').isPresent()) systemProperty 'iris.benchmark.pack', providers.gradleProperty('benchmarkPack').get()
+        }
+    }
+}
+tasks.named('runVerification') {
+    def reports = ['iris-phase1-result.json','iris-phase2-result.json','iris-phase3-uniforms.json','iris-phase4-vertices.json','iris-phase5-controls.json']
+    doFirst {
+        if (!providers.gradleProperty('clientVerification').isPresent()) throw new GradleException('Use -PclientVerification')
+        reports.each { delete file('run-verification/' + it) }
+        delete file('run-verification/iris-phase3-benchmark.json')
+    }
+    doLast {
+        def log = file('run-verification/logs/latest.log')
+        if (log.exists() && log.text =~ /VUID-|SYNC-HAZARD/) throw new GradleException('Vulkan validation reported errors; inspect run-verification/logs/latest.log')
+        reports.each {
+            def report = file('run-verification/' + it)
+            if (!report.exists() || !report.text.contains('"passed":true')) throw new GradleException('Client verification failed: ' + it)
+        }
+        if (providers.gradleProperty('benchmarkPack').isPresent()) {
+            def report = file('run-verification/iris-phase3-benchmark.json')
+            if (!report.exists() || !report.text.contains('"loaded":true') || !report.text.contains('"liveUniforms":true')) throw new GradleException('Benchmark did not load with live uniforms')
+        }
+    }
+}

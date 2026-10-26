@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "net.irisshaders.iris.vulkan.verify.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["VerificationMixin", "VertexVerificationMixin", "TerrainPathVerificationMixin", "DrawVerificationMixin"],
+  "injectors": {"defaultRequire": 1}
+}

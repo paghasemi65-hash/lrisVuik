@@ -1,0 +1,4 @@
+.gradle/
+build/
+fabric/build/
+fabric/run/

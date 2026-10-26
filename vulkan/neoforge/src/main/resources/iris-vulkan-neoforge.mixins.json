@@ -1,0 +1,33 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "net.irisshaders.iris.vulkan.fabric.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "VulkanDeviceMixin",
+    "VulkanCommandEncoderAccessor",
+    "VulkanCommandPoolAccessor",
+    "VulkanCommandEncoderMixin",
+    "VulkanSurfaceMixin",
+    "GameRendererMixin",
+    "MinecraftFrameBoundaryMixin",
+    "VulkanFeatureSetsMixin",
+    "OptionsScreenMixin",
+    "VideoSettingsScreenMixin",
+    "DynamicGpuDataMixin",
+    "ProjectionMatrixBufferMixin",
+    "FrontendRenderPassMixin",
+    "DefaultVertexFormatMixin",
+    "BufferBuilderMixin",
+    "BlockVertexContextMixin",
+    "FluidVertexContextMixin",
+    "ModelVertexContextMixin",
+    "EntitySubmissionContextMixin",
+    "BlockEntitySubmissionContextMixin",
+    "FeatureSubmissionContextMixin",
+    "BlockModelVertexContextMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

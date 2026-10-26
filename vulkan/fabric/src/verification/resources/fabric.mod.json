@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "iris_vulkan_verification",
+  "version": "1.0.0",
+  "name": "Iris Vulkan Live Verification",
+  "environment": "client",
+  "mixins": ["iris-verification.mixins.json"],
+  "depends": {"iris_vulkan_engine": "*"}
+}

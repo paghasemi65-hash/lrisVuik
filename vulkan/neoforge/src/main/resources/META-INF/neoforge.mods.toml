@@ -1,0 +1,28 @@
+license="LGPL-3.0-only"
+[[mods]]
+modId="iris_vulkan_engine"
+version="${version}"
+displayName="Iris Vulkan Engine (Development)"
+description='''Experimental native Vulkan shader engine. World shader routing is under development.'''
+[[mixins]]
+config="iris-vulkan-neoforge.mixins.json"
+[[mixins]]
+config="iris-vulkan-neoforge-fixes.mixins.json"
+[[dependencies.iris_vulkan_engine]]
+modId="neoforge"
+type="required"
+versionRange="[26.3.0.98,)"
+ordering="NONE"
+side="CLIENT"
+[[dependencies.iris_vulkan_engine]]
+modId="minecraft"
+type="required"
+versionRange="[26.3]"
+ordering="NONE"
+side="CLIENT"
+[[dependencies.iris_vulkan_engine]]
+modId="iris"
+type="incompatible"
+versionRange="[0,)"
+ordering="NONE"
+side="CLIENT"

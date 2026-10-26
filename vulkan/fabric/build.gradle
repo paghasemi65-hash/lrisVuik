@@ -1,0 +1,78 @@
+plugins { id 'net.fabricmc.fabric-loom' version '1.15.4' }
+group = rootProject.group
+version = rootProject.version
+base { archivesName = 'iris-vulkan-fabric-bridge' }
+tasks.withType(Jar).configureEach { from('../../LICENSE'); from('../../LICENSE-DEPENDENCIES') }
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+repositories { mavenCentral() }
+dependencies {
+    minecraft 'com.mojang:minecraft:26.3'
+    implementation 'net.fabricmc:fabric-loader:0.19.5'
+    compileOnly 'io.github.llamalad7:mixinextras-fabric:0.5.5' // Supplied at runtime by Fabric Loader.
+    implementation project(':')
+    include project(':')
+    include 'io.github.douira:glsl-transformer:3.0.0-pre3'
+    include 'org.antlr:antlr4-runtime:4.13.1'
+    include 'org.anarres:jcpp:1.4.14'
+}
+tasks.withType(JavaCompile).configureEach { options.release = 25 }
+processResources { inputs.property 'version', version; filesMatching('fabric.mod.json') { expand version: version } }
+
+loom.runs.client { programArgs '--graphicsBackend', 'vulkan', '--offlineDeveloperMode' }
+
+// Separate development mod: no automation classes or mixins enter the distributed bridge JAR.
+sourceSets {
+    verification {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+loom {
+    mods {
+        iris_vulkan_engine { sourceSet sourceSets.main }
+        if (providers.gradleProperty('clientVerification').isPresent()) {
+            iris_vulkan_verification { sourceSet sourceSets.verification }
+        }
+    }
+    runs {
+        verification {
+            client()
+            source sourceSets.verification
+            runDir 'run-verification'
+            programArgs '--graphicsBackend', 'vulkan', '--offlineDeveloperMode', '--username', 'IrisVerification'
+            vmArgs '--enable-native-access=ALL-UNNAMED', '-Dmixin.debug.countInjections=true'
+            if (providers.gradleProperty('benchmarkPack').isPresent()) vmArgs '-Diris.benchmark.pack=' + providers.gradleProperty('benchmarkPack').get()
+        }
+    }
+}
+tasks.named('runVerification') {
+    doFirst {
+        if (!providers.gradleProperty('clientVerification').isPresent()) throw new GradleException('Use -PclientVerification to enable the verification mod')
+        delete file('run-verification/iris-phase1-result.json')
+        delete file('run-verification/iris-phase2-result.json')
+        delete file('run-verification/iris-phase3-uniforms.json')
+        delete file('run-verification/iris-phase3-benchmark.json')
+        delete file('run-verification/iris-phase4-vertices.json')
+        delete file('run-verification/iris-phase5-controls.json')
+    }
+    doLast {
+        def log = file('run-verification/logs/latest.log')
+        if (log.exists() && log.text =~ /VUID-|SYNC-HAZARD/) throw new GradleException('Vulkan validation reported errors; inspect run-verification/logs/latest.log')
+        def result = file('run-verification/iris-phase1-result.json')
+        if (!result.exists() || !result.text.contains('"passed":true')) throw new GradleException('Live client verification did not finish successfully; inspect run-verification/logs/latest.log')
+        def packs = file('run-verification/iris-phase2-result.json')
+        if (!packs.exists() || !packs.text.contains('"passed":true')) throw new GradleException('Live shaderpack verification did not finish successfully')
+        def uniforms = file('run-verification/iris-phase3-uniforms.json')
+        if (!uniforms.exists() || !uniforms.text.contains('"passed":true')) throw new GradleException('Live uniform verification did not finish successfully')
+        def vertices = file('run-verification/iris-phase4-vertices.json')
+        if (!vertices.exists() || !vertices.text.contains('"passed":true')) throw new GradleException('Native vertex generation/GPU readback did not finish successfully')
+        def controls = file('run-verification/iris-phase5-controls.json')
+        if (!controls.exists() || !controls.text.contains('"passed":true')) throw new GradleException('Live controls and replacement verification did not finish successfully')
+        if (providers.gradleProperty('benchmarkPack').isPresent()) {
+            def benchmark = file('run-verification/iris-phase3-benchmark.json')
+            if (!benchmark.exists() || !benchmark.text.contains('"loaded":true') || !benchmark.text.contains('"liveUniforms":true')) {
+                throw new GradleException('Selected benchmark did not load and evaluate live uniforms')
+            }
+        }
+    }
+}

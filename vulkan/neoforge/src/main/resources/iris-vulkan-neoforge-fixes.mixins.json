@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "net.irisshaders.iris.vulkan.neoforge.mixin",
+  "plugin": "net.irisshaders.iris.vulkan.neoforge.NeoForgeCompatibilityPlugin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["StencilPipelineRetirementMixin", "EarlyDisplayBufferRetirementMixin"],
+  "injectors": {"defaultRequire": 1}
+}

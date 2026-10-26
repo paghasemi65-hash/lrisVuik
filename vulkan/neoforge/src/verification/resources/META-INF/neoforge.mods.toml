@@ -1,0 +1,7 @@
+license="LGPL-3.0-only"
+[[mods]]
+modId="iris_vulkan_verification"
+version="1.0.0"
+displayName="Iris Vulkan development verification"
+[[mixins]]
+config="iris-verification.mixins.json"

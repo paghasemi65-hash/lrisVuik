@@ -1,0 +1,53 @@
+# custom sodium versions
+custom_sodium/
+
+# gradle
+
+.gradle/
+build/
+out/
+classes/
+
+# brachyura
+.brachyura
+*.jfr
+
+# custom sodium
+/custom_sodium/
+
+# idea
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# vscode
+
+.settings/
+.vscode/
+bin/
+.classpath
+.project
+
+# eclipse
+
+*.launch
+
+# fabric
+
+run/
+run-verification/
+/logs/latest.log
+
+# Local API inspection inputs (official game binaries are never distributed).
+/reference/
+
+# Local engine verification logs (reports are summarized in vulkan/VALIDATION.md).
+/vulkan/*.log
+
+# macOS
+
+.DS_Store
+.AppleDouble
+.LSOverride
